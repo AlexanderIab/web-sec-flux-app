@@ -2,7 +2,7 @@ package com.iablonski.websecfluxapp.security;
 
 import com.iablonski.websecfluxapp.entity.User;
 import com.iablonski.websecfluxapp.exception.AuthException;
-import com.iablonski.websecfluxapp.respositiry.UserRepository;
+import com.iablonski.websecfluxapp.service.UserService;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +17,7 @@ import java.util.*;
 @RequiredArgsConstructor
 public class SecurityService {
 
-    private final UserRepository userRepository;
+    private final UserService userService;
     private final PasswordEncoder passwordEncoder;
     @Value("${jwt.secret}")
     private String secret;
@@ -29,6 +29,7 @@ public class SecurityService {
     private TokenDetails generateToken(User user) {
         Map<String, Object> claims = new HashMap<>() {{
             put("role", user.getRole());
+            put("username", user.getUsername());
         }};
 
         return generateToken(claims, user.getId().toString());
@@ -61,7 +62,7 @@ public class SecurityService {
     }
 
     public Mono<TokenDetails> authenticate(String username, String password) {
-        return userRepository.findUserByUsername(username)
+        return userService.getUserByUsername(username)
                 .flatMap(user -> {
                     if (!user.isActivated()) {
                         return Mono.error(new AuthException("Account disabled", "IABLONSKI_USER_ACCOUNT_DISABLED") {
