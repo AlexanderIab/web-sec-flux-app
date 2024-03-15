@@ -39,9 +39,8 @@ public class AuthController {
     }
 
     @GetMapping("/info")
-    public Mono<UserDTO> getUserInfo(@RequestBody Authentication authentication) {
+    public Mono<UserDTO> getUserInfo(Authentication authentication) {
         CustomPrincipal customPrincipal = (CustomPrincipal) authentication.getPrincipal();
         return userService.getUserById(customPrincipal.getId()).map(userMapper::toUserDTO);
     }
-
 }

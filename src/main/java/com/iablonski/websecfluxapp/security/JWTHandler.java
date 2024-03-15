@@ -5,12 +5,15 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import reactor.core.publisher.Mono;
 
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 import java.util.Base64;
 import java.util.Date;
 
 public class JWTHandler {
 
     private final String secret;
+    private static final String ALGORITHM = "HmacSHA256";
 
     public JWTHandler(String secret) {
         this.secret = secret;
@@ -35,10 +38,15 @@ public class JWTHandler {
 
     private Claims getClaimsFromToken(String token) {
         return Jwts.parser()
-                .setSigningKey(Base64.getEncoder().encodeToString(secret.getBytes()))
+                .verifyWith(generateSecretKey(secret))
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
+    }
+
+    private SecretKey generateSecretKey(String secret) {
+        byte[] decodedKey = Base64.getEncoder().encode(secret.getBytes());
+        return new SecretKeySpec(decodedKey, ALGORITHM);
     }
 
     public static class VerificationResult{

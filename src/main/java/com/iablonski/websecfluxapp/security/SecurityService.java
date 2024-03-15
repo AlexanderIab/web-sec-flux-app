@@ -4,13 +4,14 @@ import com.iablonski.websecfluxapp.entity.User;
 import com.iablonski.websecfluxapp.exception.AuthException;
 import com.iablonski.websecfluxapp.service.UserService;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 import java.util.*;
 
 @Component
@@ -25,6 +26,7 @@ public class SecurityService {
     private Integer expirationInSec;
     @Value("${jwt.issuer}")
     private String issuer;
+    private static final String ALGORITHM = "HmacSHA256";
 
     private TokenDetails generateToken(User user) {
         Map<String, Object> claims = new HashMap<>() {{
@@ -51,7 +53,7 @@ public class SecurityService {
                 .issuedAt(createdDate)
                 .id(UUID.randomUUID().toString())
                 .expiration(expirationDate)
-                .signWith(SignatureAlgorithm.HS256, Base64.getEncoder().encodeToString(secret.getBytes()))
+                .signWith(generateSecretKey(secret))
                 .compact();
 
         return TokenDetails.builder()
@@ -61,6 +63,12 @@ public class SecurityService {
                 .build();
     }
 
+    private SecretKey generateSecretKey(String secret) {
+        byte[] decodedKey = Base64.getEncoder().encode(secret.getBytes());
+        return new SecretKeySpec(decodedKey, ALGORITHM);
+    }
+
+
     public Mono<TokenDetails> authenticate(String username, String password) {
         return userService.getUserByUsername(username)
                 .flatMap(user -> {
@@ -68,7 +76,7 @@ public class SecurityService {
                         return Mono.error(new AuthException("Account disabled", "IABLONSKI_USER_ACCOUNT_DISABLED") {
                         });
                     }
-                    if (passwordEncoder.matches(password, user.getPassword())) {
+                    if (!passwordEncoder.matches(password, user.getPassword())) {
                         return Mono.error(new AuthException("Invalid password", "IABLONSKI_INVALID_PASSWORD"));
                     }
                     return Mono.just(generateToken(user).toBuilder()
